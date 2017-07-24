@@ -2,8 +2,8 @@ import scala.math._
 
 class Board(val rows: Int, val cols: Int) {
 
-  def this(board: Board) = {
-    new Board(rows, co
+  def this(b: Board) {
+    this(b.rows, b.cols)
   }
 
   class Tile(val x: Int, val y: Int) {
@@ -27,8 +27,8 @@ class Board(val rows: Int, val cols: Int) {
     override def toString = s"x $x y $y"
   }
 
-  val tiles = ((1 to ((cols * rows)-1)) :+ 0).grouped(cols).toList
-  val blank = new Tile(rows-1, cols-1)
+  var tiles = ((1 to ((cols * rows)-1)) :+ 0).grouped(cols).toList
+  var blank = new Tile(rows-1, cols-1)
 
   def tile(x: Int, y: Int): Tile = {
     new Tile(x, y)
@@ -38,11 +38,25 @@ class Board(val rows: Int, val cols: Int) {
     for(i <- 0 until rows; j <- 0 until cols) yield (i, j)
   }
 
-  def allAdjBoards(tile: Tile) = {
-    
+  def allAdjBoards() = {
+    println(blank.allMoves())
+    blank.allMoves().map(mv => move(mv))
   }
 
   def move(tile: Tile) = {
+    val b2 = new Board(this)
+    b2.tiles = this.tiles.zipWithIndex.map({
+      case(e, x) => 
+        e.zipWithIndex.map({
+          case(e2, y) =>
+            if(x == tile.x && y == tile.y)
+              0
+            else if(x == this.blank.x && y == this.blank.y)
+              tile.value()
+            else
+              e2 })}).toList
+    b2.blank = b2.tile(tile.x, tile.y)
+    b2
   }
 
   override def equals(that: Any): Boolean = {
