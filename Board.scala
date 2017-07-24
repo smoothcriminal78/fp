@@ -17,7 +17,7 @@ class Board(val rows: Int, val cols: Int) {
     }
 
     override def equals(that: Any): Boolean = {
-      if (that.isInstanceOf[Tile]) this.hashCode == that.hashCode else false
+      that.isInstanceOf[Tile] && this.hashCode == that.hashCode
     }
 
     override def hashCode: Int = {
@@ -38,8 +38,11 @@ class Board(val rows: Int, val cols: Int) {
     for(i <- 0 until rows; j <- 0 until cols) yield (i, j)
   }
 
+  def allTiles() = {
+    allTilePos().map({case(x,y) => new Tile(x, y)})
+  }
+
   def allAdjBoards() = {
-    println(blank.allMoves())
     blank.allMoves().map(mv => move(mv))
   }
 
@@ -60,20 +63,43 @@ class Board(val rows: Int, val cols: Int) {
   }
 
   override def equals(that: Any): Boolean = {
-    if (that.isInstanceOf[Tile]) this.hashCode == that.hashCode else false
+    that.isInstanceOf[Board] && this.hashCode == that.hashCode
   }
 
   override def hashCode: Int = {
-      return 1
+    allTiles().scanLeft(0){
+      case(r, t) => r + (t.value() * rows * cols)
+    }.sum
   }
 
   override def toString = s"$tiles"
 }
 
 object Board {
-  def main(args: Array[String] = Array()) = {
-    val b = new Board(3, 5)
-    val t = b.tile(1, 1)
-    println(t.allMoves())
+
+  val SOLVED = new Board(4, 4)
+
+  def shuffle(brd:Board, cnt:Int): Board = {
+    if(cnt == 0) brd else {
+      val moves = brd.blank.allMoves
+      shuffle(brd.move(moves(scala.util.Random.nextInt(moves.size))), cnt-1)
+    }
+  }
+
+  def dijkstraSolve(brd: Board, cnt: Int, visited: Map[Board, Board]): Int = {
+    if (brd == SOLVED) cnt else {
+      brd.allAdjBoards.filterNot(visited.contains(_)).foreach({ab =>
+          ab.blank.allMoves.foreach({mv =>
+            dijkstraSolve(brd.move(brd.tile(mv.x, mv.y)), cnt+1, visited.updated(ab, brd))
+          })
+      })
+      -1
+    }
+  }
+
+  def main(args: Array[String] = Array()): Unit = {
+    val b = shuffle(new Board(4, 4), 3)
+    val res = dijkstraSolve(b, 0, Map())
+    println(res)
   }
 }
