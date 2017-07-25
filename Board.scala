@@ -1,3 +1,4 @@
+import scala.collection.immutable.Queue
 import scala.math._
 
 class Board(val rows: Int, val cols: Int) {
@@ -34,6 +35,10 @@ class Board(val rows: Int, val cols: Int) {
     new Tile(x, y)
   }
 
+  def allMoves() = {
+    blank.allMoves()
+  }
+
   def allTilePos() = {
     for(i <- 0 until rows; j <- 0 until cols) yield (i, j)
   }
@@ -47,7 +52,9 @@ class Board(val rows: Int, val cols: Int) {
   }
 
   def move(tile: Tile) = {
+    if(!allMoves.contains(tile)) throw new Exception()
     val b2 = new Board(this)
+    b2.blank = new b2.Tile(tile.x, tile.y)
     b2.tiles = this.tiles.zipWithIndex.map({
       case(e, x) => 
         e.zipWithIndex.map({
@@ -58,7 +65,6 @@ class Board(val rows: Int, val cols: Int) {
               tile.value()
             else
               e2 })}).toList
-    b2.blank = b2.tile(tile.x, tile.y)
     b2
   }
 
@@ -72,13 +78,12 @@ class Board(val rows: Int, val cols: Int) {
     }.sum
   }
 
-  override def toString = s"$tiles"
+  override def toString = tiles.map(_.mkString(" ")).mkString("\n")
 }
 
 object Board {
 
-  val SOLVED = new Board(4, 4)
-
+  val SOLVED = new Board(2, 2)
   def shuffle(brd:Board, cnt:Int): Board = {
     if(cnt == 0) brd else {
       val moves = brd.blank.allMoves
@@ -86,20 +91,27 @@ object Board {
     }
   }
 
-  def dijkstraSolve(brd: Board, cnt: Int, visited: Map[Board, Board]): Int = {
-    if (brd == SOLVED) cnt else {
-      brd.allAdjBoards.filterNot(visited.contains(_)).foreach({ab =>
-          ab.blank.allMoves.foreach({mv =>
-            dijkstraSolve(brd.move(brd.tile(mv.x, mv.y)), cnt+1, visited.updated(ab, brd))
-          })
-      })
-      -1
+  def dijkstraSolve(current: Board, cnt: Int, visited: Map[Board, Board], toVisit: Seq[Board]): Unit = {
+    if (current == SOLVED || cnt > 1000) {
+      println(s"Solution found in $cnt moves!")
+      def solution(b: Board): List[Board] = {
+        if(b==visited(b)) List(b) else b +: solution(visited(b))
+      }
+      println(solution(current).reverse.mkString("\n\n"))
+    } else {
+      val adjBoards = current.allAdjBoards.filterNot(visited.contains(_))
+      val tv = adjBoards ++ toVisit
+      val candidate = tv.head
+
+      dijkstraSolve(candidate, cnt+1, visited.updated(candidate, current), tv.tail)
     }
   }
 
   def main(args: Array[String] = Array()): Unit = {
-    val b = shuffle(new Board(4, 4), 3)
-    val res = dijkstraSolve(b, 0, Map())
-    println(res)
+    val b = shuffle(SOLVED, 3)
+    println("------------")
+    print(b)
+    println("------------")
+    val res = dijkstraSolve(b, 0, Map(b -> b), Seq())
   }
 }
