@@ -1,4 +1,3 @@
-import scala.collection.immutable.Queue
 import scala.math._
 
 class Board(val rows: Int, val cols: Int) {
@@ -69,7 +68,14 @@ class Board(val rows: Int, val cols: Int) {
   }
 
   override def equals(that: Any): Boolean = {
-    that.isInstanceOf[Board] && this.hashCode == that.hashCode
+    // that.isInstanceOf[Board] && this.hashCode == that.hashCode
+    if(!that.isInstanceOf[Board])
+      return false
+    allTilePos.foreach({case(x, y) =>
+      if (tiles(x)(y) != that.asInstanceOf[Board].tiles(x)(y))
+        return false
+    })
+    return true
   }
 
   override def hashCode: Int = {
@@ -83,7 +89,7 @@ class Board(val rows: Int, val cols: Int) {
 
 object Board {
 
-  val SOLVED = new Board(2, 2)
+  val SOLVED = new Board(4, 4)
   def shuffle(brd:Board, cnt:Int): Board = {
     if(cnt == 0) brd else {
       val moves = brd.blank.allMoves
@@ -91,27 +97,57 @@ object Board {
     }
   }
 
-  def dijkstraSolve(current: Board, cnt: Int, visited: Map[Board, Board], toVisit: Seq[Board]): Unit = {
-    if (current == SOLVED || cnt > 1000) {
-      println(s"Solution found in $cnt moves!")
-      def solution(b: Board): List[Board] = {
-        if(b==visited(b)) List(b) else b +: solution(visited(b))
-      }
-      println(solution(current).reverse.mkString("\n\n"))
+  def dijkstraSolve(current: Board, cnt: Int, visited: Map[Board, Board], toVisit: List[Board]): Int = {
+    if (current == SOLVED) {
+      def solution(b: Board): List[Board] = if(b==visited(b)) List(b) else b +: solution(visited(b))
+      println(s"Solution found in $cnt moves!\n${solution(current).reverse.mkString("\n\n")}")
+      return cnt
     } else {
       val adjBoards = current.allAdjBoards.filterNot(visited.contains(_))
-      val tv = adjBoards ++ toVisit
-      val candidate = tv.head
-
-      dijkstraSolve(candidate, cnt+1, visited.updated(candidate, current), tv.tail)
+      val tv = toVisit ++ adjBoards
+      if (tv.size > 0) {
+        dijkstraSolve(tv.head, cnt+1, visited ++ adjBoards.map(_ -> current), tv.tail)
+      } else {
+        println("No solution is found")
+        return -1
+      }
     }
   }
 
+  def ds(b: Board): Int = {
+    val predecessor = scala.collection.mutable.Map[Board, Board]((b -> b))
+    val toVisit = scala.collection.mutable.ArrayBuffer[Board](b)
+    var cnt = 0
+    
+    while(toVisit.size > 0) {
+      val candidate = toVisit.remove(0)
+      if(cnt % 1000 == 0) println(s"Considered $cnt positions")
+
+      if(candidate == SOLVED) {
+        var solution = scala.collection.mutable.ArrayBuffer[Board]()
+        var backtrace = candidate
+        while(predecessor(backtrace) != backtrace){
+          solution.prepend(backtrace)
+          backtrace = predecessor(backtrace)
+        }
+        println(s"Solved in $cnt moves\n${solution.mkString("\n\n")}")
+        return cnt
+      }
+      val adjBoards = candidate.allAdjBoards.filterNot(predecessor.contains(_))
+      predecessor ++= adjBoards.map(_ -> candidate)
+      toVisit.appendAll(adjBoards)
+      cnt+=1
+    }
+    println("No solution is found")
+    return -1
+  }
+
   def main(args: Array[String] = Array()): Unit = {
-    val b = shuffle(SOLVED, 3)
-    println("------------")
-    print(b)
-    println("------------")
-    val res = dijkstraSolve(b, 0, Map(b -> b), Seq())
+    val b = shuffle(SOLVED, 17)
+    // println(s"\nMutable\n$b\n-----------------------")
+    // ds(b)
+
+    println(s"\nImmutable\n$b\n-----------------------")
+    dijkstraSolve(b, 0, Map(b -> b), List())
   }
 }
