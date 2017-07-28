@@ -8,7 +8,7 @@ class Board(val rows: Int, val cols: Int) {
 
   class Tile(val x: Int, val y: Int) {
 
-    def value() = Board.this.tiles(x)(y)
+    def value():Int = Board.this.tiles(x)(y)
 
     def allMoves() = {
       for(dx <- -1 to 1; dy <- -1 to 1; if((x + dx >= 0 && x + dx < rows) && (y + dy >= 0 && y + dy < cols) && abs(dx) + abs(dy) == 1)) yield {
@@ -43,11 +43,25 @@ class Board(val rows: Int, val cols: Int) {
   }
 
   def allTiles() = {
-    allTilePos().map({case(x,y) => new Tile(x, y)})
+    allTilePos.map({case(x,y) => new Tile(x, y)})
   }
 
   def allAdjBoards() = {
-    blank.allMoves().map(mv => move(mv))
+    blank.allMoves.map(mv => move(mv))
+  }
+
+  def manhattanDistance(): Int = {
+    allTilePos.map({case(x, y) => 
+      val v = Board.SOLVED.tiles(x)(y)
+      if(tiles(x)(y) != v) {
+        val t = allTiles.find(_.value == v).get
+        abs(x - t.x) + abs(y - t.y) 
+      } else 0
+    }).sum
+  }
+
+  def estimateError() = {
+    manhattanDistance()
   }
 
   def move(tile: Tile) = {
@@ -114,6 +128,25 @@ object Board {
     }
   }
 
+  def aStarSolve(current: Board, cnt: Int, visited: Map[Board, Board], weight: Map[Board, Int]): Int = {
+    if (current == SOLVED) {
+      def solution(b: Board): List[Board] = if(b==visited(b)) List(b) else b +: solution(visited(b))
+      println(s"Solution found in $cnt moves!\n${solution(current).reverse.mkString("\n\n")}")
+      return cnt
+    } else {
+      val adjBoards = current.allAdjBoards.filterNot(visited.contains(_))
+      val w = weight ++ adjBoards.map(ab => ab -> ab.estimateError)
+      val candidate = w.minBy(_._2)._1
+      println(candidate)
+      if (w.size > 0) {
+        aStarSolve(candidate, cnt+1, visited ++ adjBoards.map(_ -> current), w - candidate)
+      } else {
+        println("No solution is found")
+        return -1
+      }
+    }
+  }
+
   def ds(b: Board): Int = {
     val predecessor = scala.collection.mutable.Map[Board, Board]((b -> b))
     val toVisit = scala.collection.mutable.ArrayBuffer[Board](b)
@@ -143,11 +176,14 @@ object Board {
   }
 
   def main(args: Array[String] = Array()): Unit = {
-    val b = shuffle(SOLVED, 17)
-    // println(s"\nMutable\n$b\n-----------------------")
-    // ds(b)
+    val b = shuffle(SOLVED, 40)
+    println(s"\nMutable\n$b\n-----------------------")
+    ds(b)
 
-    println(s"\nImmutable\n$b\n-----------------------")
-    dijkstraSolve(b, 0, Map(b -> b), List())
+    // println(s"\nImmutable\n$b\n-----------------------")
+    // dijkstraSolve(b, 0, Map(b -> b), List())
+    
+    println(s"\naStarSolve\n$b\n-----------------------")
+    aStarSolve(b, 0, Map(b->b), Map())
   }
 }
